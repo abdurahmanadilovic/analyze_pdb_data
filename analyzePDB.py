@@ -3,6 +3,15 @@ import time
 import json
 import requests
 import concurrent.futures
+from threading import Lock
+
+print_lock = Lock()
+qmean_url = "https://swissmodel.expasy.org/qmean/submit/"
+
+
+def print_concurrent(*msg):
+    with print_lock:
+        print(msg)
 
 
 def get_all_pdb_files():
@@ -12,39 +21,48 @@ def get_all_pdb_files():
             if ".pdb" not in filename:
                 continue
             files.append((filename, dirname))
-    print(files)
+    print_concurrent(files)
     return files
+
+
+def submit_file_and_get_results_json(file):
+    post_request = requests.post(url=qmean_url,
+                                 data={"project_name:": "muhi_phd", "email": "spam1010@hotmail.com"},
+                                 files={"structure": open(file, 'rb')})
+    post_request_json = post_request.json()
+
+    return post_request_json["results_json"], requests.get(post_request_json["results_json"]).json()
 
 
 def download_file(arg_tuple):
     try:
         filename, dirname = arg_tuple
-        print("started working on file", filename)
+        print_concurrent("started working on file", filename)
+
         file = os.path.join(dirname, filename)
+        results_url, results_response_json = submit_file_and_get_results_json(file)
 
-        qmean_url = "https://swissmodel.expasy.org/qmean/submit/"
-
-        response = requests.post(url=qmean_url,
-                                 data={"project_name:": "muhi_phd", "email": "spam1010@hotmail.com"},
-                                 files={"structure": open(file, 'rb')})
-
-        post_json = response.json()
-        results_response = requests.get(post_json["results_json"])
-        results_response_json = results_response.json()
-
+        sleep_in_seconds = 10
         while results_response_json["status"] != "COMPLETED":
-            response = requests.get(post_json["results_json"])
-            results_response_json = response.json()
-            print(filename, "status", results_response_json["status"])
-            time.sleep(1)
+            results_response_json = requests.get(results_url).json()
+            print_concurrent(filename, "status", results_response_json["status"])
+
+            if results_response_json["status"] == "FAILED":
+                sleep_in_seconds *= 2
+                print_concurrent(filename, "status FAILED", "sleeping for", sleep_in_seconds, "seconds")
+                time.sleep(sleep_in_seconds)
+                results_url, results_response_json = submit_file_and_get_results_json(file)
+                continue
+
+            time.sleep(sleep_in_seconds)
 
         json_file_path = os.path.join(dirname, filename.split(".")[0] + ".json")
-        print("saving json file", json_file_path)
+        print_concurrent("saving json file", json_file_path)
         with open(json_file_path, 'w') as f:
             models = results_response_json["models"]
             f.write(json.dumps(models))
     except Exception as ex:
-        print(ex)
+        print_concurrent(ex)
 
 
 def main():
@@ -55,4 +73,3 @@ def main():
 
 
 main()
-
