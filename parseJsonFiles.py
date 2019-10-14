@@ -14,7 +14,10 @@ def build_csv_dict(data, final_dict):
             else:
                 build_csv_dict(data[key], final_dict)
         else:
-            final_dict[key] = data[key]
+            if isinstance(data[key], str):
+                final_dict[key] = data[key].rstrip()
+            else:
+                final_dict[key] = data[key]
 
     return final_dict
 
