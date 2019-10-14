@@ -23,6 +23,8 @@ def build_csv_dict(data, final_dict):
 
 
 def main():
+    json_files = []
+
     for dirname, dirnames, filenames in os.walk('./files'):
 
         for filename in filenames:
@@ -35,12 +37,13 @@ def main():
                 data = json.load(f)
 
             csv_file_path = os.path.join(dirname, filename.split(".")[0] + ".csv")
-            with open(csv_file_path, 'w') as file:
-                csv_dict = build_csv_dict(data, {})
-                json_file = csv.writer(file)
-                json_file.writerow(csv_dict.keys())
-                json_file.writerow(csv_dict.values())
+            json_files.append((csv_file_path, build_csv_dict(data, {})))
+
+    with open(os.path.join('.', 'files', 'results.csv'), 'w') as file:
+        results_file = csv.writer(file)
+        results_file.writerow(json_files[0][1].keys())
+        for json_file in json_files:
+            results_file.writerow(json_file[1].values())
 
 
 main()
-
