@@ -36,7 +36,7 @@ def main():
     for json_file in json_files:
         with open(json_file[0], 'w') as file:
             results_file = csv.writer(file)
-            results_file.writerow(json_files[0][1].keys())
+            results_file.writerow(json_file[1].keys())
             for values in json_file[1].values():
                 for value in values:
                     results_file.writerow([value])
